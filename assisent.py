@@ -106,12 +106,11 @@ def custom_scrapper(text: str) -> str:
 def get_Chat_response(user_input):
     url = user_input
     splits = load_and_transform_html(url)
-    print(splits)
     text = splits[0].page_content
     if len(text) == 13:
         
         print(text)
-    data = scrapper(text)
+    data = custom_scrapper(text)
 
     similar_docs = get_k_similar(text = text,k=3)
     
@@ -122,7 +121,7 @@ def get_Chat_response(user_input):
         add_to_db(documents=splits)
     
     
-    return similars_str +'\n'+data
+    return f'{data}\n 3 silmilars {similars_str}'
 
 
 if __name__ == '__main__':
