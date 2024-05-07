@@ -5,7 +5,6 @@ from config import configs
 from embedings import embeddings
 import requests
 
-from langchain.docstore.document import Document
 
 
 def load_and_transform_html(url : str) -> list[str]:
@@ -26,19 +25,14 @@ def load_and_transform_html(url : str) -> list[str]:
     docs = loader.load()
     print(f"==>> docs: {docs}")
     
-    response = requests.get(url)
-    response.raise_for_status() 
-    doc =  Document(page_content=response.text, metadata={"source": url})
-    
+
     html2text = Html2TextTransformer()
-    doc_ = html2text.transform_documents(doc)
+    doc_ = html2text.transform_documents(docs)
     
     #bs_transformer = BeautifulSoupTransformer()
     #docs_transformed = bs_transformer.transform_documents(docs, 
     #    tags_to_extract=["h1", "h2", "h3","div",'a','p', "span"])
 
-# Raise an exception if the request was unsuccessful
-    print(doc_)
     return doc_
 
 
