@@ -1,5 +1,4 @@
-from langchain_community.document_loaders import  UnstructuredURLLoader,AsyncChromiumLoader
-from langchain_community.document_transformers import Html2TextTransformer,BeautifulSoupTransformer
+from langchain_community.document_loaders import  UnstructuredURLLoader
 from langchain_community.vectorstores import FAISS
 from config import configs
 from embedings import embeddings
@@ -21,19 +20,16 @@ def load_and_transform_html(url : str) -> list[str]:
 
     # Load HTML
     
-    loader = AsyncChromiumLoader(url)
+    loader = UnstructuredURLLoader(urls=[f"https://r.jina.ai/{url}"])
+
     docs = loader.load()
-    print(f"==>> docs: {docs}")
     
 
-    html2text = Html2TextTransformer()
-    doc_ = html2text.transform_documents(docs)
-    
     #bs_transformer = BeautifulSoupTransformer()
     #docs_transformed = bs_transformer.transform_documents(docs, 
     #    tags_to_extract=["h1", "h2", "h3","div",'a','p', "span"])
 
-    return doc_
+    return docs
 
 
 def add_to_db(documents: list[str]) -> None:
