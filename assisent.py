@@ -1,15 +1,41 @@
 
-from langchain.chains import create_extraction_chain
 from langchain_openai import  ChatOpenAI
-
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.pydantic_v1 import BaseModel, Field
 import openai 
-
-from utils import get_k_similar,add_to_db,load_and_transform_html
+import json
+from utils import get_k_similar, add_to_db, load_and_transform_html
 from config import configs
+from typing import Optional
+
 
 openai.api_key = configs["OPENAI_API_KEY"]
 
-llm = ChatOpenAI(temperature=0.5, model="gpt-3.5-turbo-0613")
+
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are an expert extraction algorithm. "
+            "Only extract relevant information from the text. "
+            "If you do not know the value of an attribute asked "
+            "to extract, return null for the attribute's value.",
+        ), 
+        ("human", "{text}"),
+    ]
+)
+
+
+class VC_Firm(BaseModel):
+    """Information about a Venture Capital Firm."""
+
+    name: Optional[str] = Field(..., description="The name of the Ventenue Capital Firm")
+    contacts: Optional[str] = Field(
+        ..., description="The contacts of the Ventenue Capital Firm"
+    )
+    industries: Optional[str] = Field(..., description="industries which they invested in")
+    investment_rounds: Optional[str] = Field(..., description="Investment rounds that they participate/lead")
+
 
 def scrapper(text: str) -> str:
     """
@@ -21,108 +47,45 @@ def scrapper(text: str) -> str:
     Returns:
         str: The extracted text content with relevant information.
     """
-    schema = {
-        "properties": {
-            "Company Name": {"type": "string"},
-            "contacts": {"type": "array", "items": {}},
-            "all Industries that they invest in": {"type": "array", "items": {}},
-            "Investment rounds that they participate/lead": {"type": "array", "items": {}}
-        },
-        "required": ["Company Name", "contacts", "all Industries that they invest in", "Investment rounds that they participate/lead"],
-    }
-
+    
+    if not len(text):
+        return 'Data not founded'
     print("Extracting content with LLM")
 
-    # Process the first split
-    extracted_content = create_extraction_chain(schema=schema, llm=llm).invoke(text)["text"]
-    return str(extracted_content)
 
-
-
-
-
-function_extraction=[
-        {
-            "name": "information_extraction",
-            "description": "Parse unstructured data nicely",
-            "parameters": {
-                'type': 'object',
-                'properties': {
-                    'name': {
-                             'type': 'string'},
-                    'contacts': {
-                                 'type': 'array', 
-                                 'items': {}},
-                    'industries_invested_in': {
-                                        'type': 'array',
-                                        'items': {}
-                                    },
-                    'investment_rounds': {
-                                        'type': 'array',
-                                        'items': {}
-                                    }
-                    },
-                    'required': ['name', 'contacts', 'industries_invested_in', 'investment_rounds']
-            }
-        }
-    ]
-
-def custom_scrapper(text: str) -> str:
-    """
-    Extract and save the relevant entities mentioned in the following passage together with their properties.
-
-    Args:
-        text (str): The raw HTML data to be parsed
-
-    Returns:
-        str: A JSON string containing the extracted data
-    """
-    
-    completion = openai.chat.completions.create(
-        model="gpt-3.5-turbo-0613",  # Feel free to change the model to gpt-3.5-turbo-1106
-        messages=[
-            {"role": "system", "content": "You are a master at scraping and parsing raw HTML."},
-            {"role": "user", "content": f'''
-                Extract and save the relevant entities mentioned in the following passage together with their properties.
-
-                Only extract the properties mentioned in the 'information_extraction' function.
-
-                If a property is not present and is not required in the function parameters, do not include it in the output.
-
-                Passage:
-                {text}
-                '''}
-        ],
-        functions=function_extraction,
-        function_call="auto"
+    llm = ChatOpenAI(
+        model="gpt-3.5-turbo-1106",
+        temperature=0,
     )
+    runnable = prompt | llm.with_structured_output(
+        schema=VC_Firm,
+        method="function_calling",
+        include_raw=False,
+    )
+    extracted_content = runnable.invoke({"text": text})
+    extracted_dict = VC_Firm.parse_obj(extracted_content).dict()
+ 
+    return json.dumps(extracted_dict)
 
-    argument_str = completion.choices[0].message.function_call.arguments  # type: str
-    data = argument_str
-    return data
 
 
-
-def get_Chat_response(user_input):
-    url = user_input
-    splits = load_and_transform_html(url)
+def get_Chat_response(url):
+    #get the content from the webpage
+    splits = load_and_transform_html(url,loader="unstructured")
     text = splits[0].page_content
-    if len(text) == 13:
-        
-        print(text)
-    data = custom_scrapper(text)
-
+    #scrap the content
+    data = scrapper(text)
+    #get the similars
     similar_docs = get_k_similar(text = text,k=3)
-    
     list_of_links = [similar_docs[i].metadata["source"] for i in range(len(similar_docs))]
     similars_str = ' '.join(list_of_links)
-    
+    #add content to the db
     if url not in list_of_links:
+        print('metadata',splits[0].metadata["source"])
         add_to_db(documents=splits)
     
-    
-    return f'{data}\n 3 silmilars {similars_str}'
+    return f'{data}\n\n{similars_str}'
 
 
 if __name__ == '__main__':
-    print(get_Chat_response('https://www.nea.com'))
+    print(get_Chat_response("https://www.accel.com/"))

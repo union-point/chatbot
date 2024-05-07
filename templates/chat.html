@@ -26,7 +26,7 @@
 								</div>
 								<div class="user_info">
 									<span>ChatBot</span>
-									<p>Ask me anything!</p>
+									<p>I now all about VC firms</p>
 								</div>
 							</div>
 						</div>
@@ -49,6 +49,12 @@
 		
 		<script>
 			$(document).ready(function() {
+				const date = new Date();
+				const hour = date.getHours();
+				const minute = date.getMinutes();
+				const str_time = hour+":"+minute;
+				var html = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + 'Please enter the VC website URL' + '<span class="msg_time">' + str_time + '</span></div></div>';
+				$("#messageFormeight").append(html) 
 				$("#messageArea").on("submit", function(event) {
 					const date = new Date();
 					const hour = date.getHours();
@@ -70,8 +76,10 @@
 						type: "POST",
 						url: "/get",
 					}).done(function(data) {
-						var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data + '<span class="msg_time">' + str_time + '</span></div></div>';
-						replaceBotMessage(thinkingMessage, data);
+						const myArray = data.split("\n\n"); 
+						console.log(myArray);
+						var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + myArray[0] +'<span class="msg_time">' + str_time + '</span></div></div>';
+						replaceBotMessage(thinkingMessage, `${myArray[0]} <br\>3 Similars in my database:<br\>${myArray[1]}`);
 
 						scrollToLastMessage()
 					});
@@ -92,7 +100,7 @@
           );
           thinkingElement.classList.remove("thinking");
         }
-      }
+    }
 
       function appendBotMessage(message) {
         const date = new Date();

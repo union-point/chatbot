@@ -1,17 +1,16 @@
-from langchain_community.document_loaders import  UnstructuredURLLoader
+from langchain_community.document_loaders import  UnstructuredURLLoader,AsyncChromiumLoader,SeleniumURLLoader
+from langchain_community.document_transformers import BeautifulSoupTransformer
 from langchain_community.vectorstores import FAISS
 from config import configs
 from embedings import embeddings
-import requests
 
-
-
-def load_and_transform_html(url : str) -> list[str]:
+def load_and_transform_html(url : str, loader:str = "chromium") -> list[str]:
     """
     Load HTML document from the given URL and transform it.
 
     Args:
         url (str): The URL to load.
+        loader (str): The loader to use.("chromium", "selenium", "unstructured")
 
     Returns:
        Sequence[Document]: The transformed HTML document.
@@ -19,16 +18,23 @@ def load_and_transform_html(url : str) -> list[str]:
     print(f"==>> urls: {url}")
 
     # Load HTML
+    match loader:
+        case "chromium":
+            loader = AsyncChromiumLoader([url])
+            docs = loader.load()
+            bs_transformer = BeautifulSoupTransformer()
+            docs = bs_transformer.transform_documents(docs, 
+            tags_to_extract=["h1", "h2", "h3","div",'a','p', "span"])
+        case "selenium":
+            loader = SeleniumURLLoader(urls=[url]) 
+            docs = loader.load()
+        case "unstructured":
+            loader = UnstructuredURLLoader(urls=[url])
+            docs = loader.load()
+        case _:
+            return "error loader is invalid"
     
-    loader = UnstructuredURLLoader(urls=[f"https://r.jina.ai/{url}"])
-
-    docs = loader.load()
-    
-
-    #bs_transformer = BeautifulSoupTransformer()
-    #docs_transformed = bs_transformer.transform_documents(docs, 
-    #    tags_to_extract=["h1", "h2", "h3","div",'a','p', "span"])
-
+    print(f'==>> docs size: {len(docs[0].page_content)}')
     return docs
 
 
